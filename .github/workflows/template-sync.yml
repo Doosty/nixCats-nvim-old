@@ -12,6 +12,6 @@ jobs:
         uses: AndreasAugustin/actions-template-sync@v1.1.8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          source_repo_path: BirdeeHub/nixCats.nvim 
+          source_repo_path: BirdeeHub/nixCats-nvim 
           upstream_branch: main
 
