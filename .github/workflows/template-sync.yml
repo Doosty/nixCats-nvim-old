@@ -1,0 +1,17 @@
+on:
+  schedule:
+  - cron:  "0 12 * * *"
+  workflow_dispatch:
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: actions-template-sync
+        uses: AndreasAugustin/actions-template-sync@v1.1.8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_repo_path: BirdeeHub/nixCats.nvim 
+          upstream_branch: main
+
