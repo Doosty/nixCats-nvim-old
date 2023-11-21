@@ -1,5 +1,3 @@
--- Copyright (c) 2023 BirdeeHub 
--- Licensed under the MIT license 
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
@@ -43,7 +41,6 @@ vim.o.smartcase = true
 -- Keep signcolumn on by default
 vim.wo.signcolumn = 'yes'
 vim.wo.relativenumber = true
-vim.cmd([[hi LineNr guifg=#bb9af7]])
 
 -- Decrease update time
 vim.o.updatetime = 250
