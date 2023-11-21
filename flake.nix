@@ -1,5 +1,7 @@
 # Copyright (c) 2023 BirdeeHub 
 # Licensed under the MIT license 
+# I don't really care if you don't include this header.
+# just credit me in the nix parts or fork it.
 {
   description = "A Lua-natic's neovim flake, with extra cats! nixCats!";
 
@@ -184,7 +186,6 @@
               # ))
               nvim-surround
               indent-blankline-nvim
-              # lualine-lsp-progress # replaced by fidget
               nvim-web-devicons
               luasnip
               cmp_luasnip
@@ -244,12 +245,14 @@
             wrapRc = true;
             # to use a different lua folder other than myLuaConf, change this value:
             RCName = "myLuaConf";
-            viAlias = true;
+            viAlias = false;
             vimAlias = true;
           };
           unwrappedLua = {
             wrapRc = false;
-            viAlias = true;
+            # will now look for nixCats-nvim within .config and .local and others
+            configDirName = "nixCats-nvim";
+            viAlias = false;
             vimAlias = true;
           };
         };
