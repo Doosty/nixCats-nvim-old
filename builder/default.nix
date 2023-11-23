@@ -34,25 +34,35 @@
       configDirName = "nvim";
     } // settings;
 
-    # package the entire flake as plugin
+    # package the entire runtimepath as plugin
+    # see :h rtp
+    # it simply copies each of the folders mentioned the same as we do for luaAfter
     LuaConfig = pkgs.stdenv.mkDerivation {
-        name = config.RCName;
-        builder = builtins.toFile "builder.sh" ''
+      name = config.RCName;
+      builder = builtins.toFile "builder.sh" ((import ./utils.nix).runtimepathcopier self);
+    };
+    # We package after separately to make sure it is run last
+    luaAfter = pkgs.stdenv.mkDerivation {
+      name = "${config.RCName}_after";
+      builder = builtins.toFile "builder.sh" ''
           source $stdenv/setup
-          mkdir -p $out
-          cp -r ${self}/* $out
-        '';
-      };
+          mkdir -p $out/
+          if [ -d ${self}/after ]; then
+             cp -r ${self}/after/* $out/
+          fi
+      '';
+    };
 
     # see :help nixCats
     nixCats = pkgs.stdenv.mkDerivation {
       name = "nixCats";
       builder = let
+        categoriesPlus = categories // { RCName = config.RCName; inherit wrapRc; };
         cats = builtins.toFile "nixCats.lua" ''
             vim.api.nvim_create_user_command('NixCats', 
             [[lua print(vim.inspect(require('nixCats')))]] , 
             { desc = 'So Cute!' })
-            return ${(import ./utils.nix).luaTablePrinter categories}
+            return ${(import ./utils.nix).luaTablePrinter categoriesPlus}
           '';
       in builtins.toFile "builder.sh" ''
         source $stdenv/setup
@@ -66,7 +76,13 @@
     wrapRc = if config.RCName != "" then config.wrapRc else false;
 
     # and create our customRC to call it
-    customRC = if wrapRc then ''lua require('${config.RCName}')'' else "";
+    customRC = if wrapRc then ''
+        packadd ${config.RCName}
+        lua require('${config.RCName}')
+        set runtimepath+=${luaAfter}
+      '' else "";
+    # This makes sure our config is loaded first and our after is loaded last
+    # and it also requires the chosen directory or file in the lua directory
 
     extraPlugins = if wrapRc then [ nixCats LuaConfig ] else [ nixCats ];
 
