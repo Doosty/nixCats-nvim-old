@@ -178,6 +178,7 @@
               vim-repeat
               nvim-treesitter-textobjects
               nvim-treesitter.withAllGrammars
+              # This is for if you only want some of the grammars
               # (nvim-treesitter.withPlugins (
               #   plugins: with plugins; [
               #     nix
@@ -245,6 +246,7 @@
             wrapRc = true;
             # to use a different lua folder other than myLuaConf, change this value:
             RCName = "myLuaConf";
+            configDirName = "nixCats-nvim";
             viAlias = false;
             vimAlias = true;
           };
