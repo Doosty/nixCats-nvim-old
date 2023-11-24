@@ -1,7 +1,7 @@
 # Copyright (c) 2023 BirdeeHub 
 # Licensed under the MIT license 
-# I don't really care if you don't include this header.
-# just credit me in the nix parts or fork it.
+# Only 3 files are marked with this header.
+# Please leave them in.
 {
   description = "A Lua-natic's neovim flake, with extra cats! nixCats!";
 
@@ -178,6 +178,7 @@
               vim-repeat
               nvim-treesitter-textobjects
               nvim-treesitter.withAllGrammars
+              # This is for if you only want some of the grammars
               # (nvim-treesitter.withPlugins (
               #   plugins: with plugins; [
               #     nix
@@ -245,6 +246,7 @@
             wrapRc = true;
             # to use a different lua folder other than myLuaConf, change this value:
             RCName = "myLuaConf";
+            configDirName = "nixCats-nvim";
             viAlias = false;
             vimAlias = true;
           };
@@ -252,6 +254,7 @@
             wrapRc = false;
             # will now look for nixCats-nvim within .config and .local and others
             configDirName = "nixCats-nvim";
+            RCName = "myLuaConf";
             viAlias = false;
             vimAlias = true;
           };
