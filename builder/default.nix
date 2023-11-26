@@ -24,7 +24,6 @@
   let
     config = {
       wrapRc = true;
-      RCName = "";
       viAlias = false;
       vimAlias = false;
       withNodeJs = false;
@@ -34,22 +33,13 @@
       configDirName = "nvim";
     } // settings;
 
-    # package the entire runtimepath as plugin
-    # see :h rtp
-    # it simply copies each of the folders mentioned the same as we do for luaAfter
+    # package entire flake into the store
     LuaConfig = pkgs.stdenv.mkDerivation {
-      name = config.RCName;
-      builder = builtins.toFile "builder.sh" ((import ./utils.nix).runtimepathcopier self);
-    };
-    # We package after separately to make sure it is run last
-    luaAfter = pkgs.stdenv.mkDerivation {
-      name = "${config.RCName}_after";
+      name = builtins.baseNameOf self;
       builder = builtins.toFile "builder.sh" ''
-          source $stdenv/setup
-          mkdir -p $out/
-          if [ -d ${self}/after ]; then
-             cp -r ${self}/after/* $out/
-          fi
+        source $stdenv/setup
+        mkdir -p $out
+        cp -r ${self}/* $out/
       '';
     };
 
@@ -57,7 +47,7 @@
     nixCats = pkgs.stdenv.mkDerivation {
       name = "nixCats";
       builder = let
-        categoriesPlus = categories // { RCName = config.RCName; inherit wrapRc; };
+        categoriesPlus = categories // { inherit (config) wrapRc; };
         cats = builtins.toFile "nixCats.lua" ''
             vim.api.nvim_create_user_command('NixCats', 
             [[lua print(vim.inspect(require('nixCats')))]] , 
@@ -73,24 +63,28 @@
       '';
     };
 
-    wrapRc = if config.RCName != "" then config.wrapRc else false;
-
     # create our customRC to call it
+    # This makes sure our config is loaded first and our after is loaded last
+    # it also removes the regular config dir from the path.
     configDir = if config.configDirName != null && config.configDirName != ""
       then config.configDirName else "nvim";
-    customRC = if wrapRc then ''
+    customRC = if config.wrapRc then ''
         let configdir = expand('~') . "/.config/${configDir}"
         execute "set runtimepath-=" . configdir
         execute "set runtimepath-=" . configdir . "/after"
-        packadd ${config.RCName}
-        set runtimepath+=${luaAfter}
-        lua require('${config.RCName}')
-      '' else "";
-    # This makes sure our config is loaded first and our after is loaded last
-    # and it also requires the chosen directory or file in the lua directory
-    # it also removes the regular config dir from the path.
 
-    extraPlugins = if wrapRc then [ nixCats LuaConfig ] else [ nixCats ];
+        let new_directory = '${LuaConfig}'
+        let current_runtimepath = &runtimepath
+        let runtimepath_list = split(current_runtimepath, ',')
+        call insert(runtimepath_list, new_directory, 0)
+        let &runtimepath = join(runtimepath_list, ',')
+
+        set runtimepath+=${LuaConfig}/after
+
+        lua package.path = package.path .. ';${LuaConfig}/init.lua'
+        lua require('${builtins.baseNameOf LuaConfig}')
+      '' else "";
+
 
     # this is what allows for dynamic packaging in flake.nix
     # It includes categories marked as true, then flattens to a single list
@@ -100,7 +94,7 @@
     # I didnt add stdenv.cc.cc.lib, so I would suggest not removing it.
     # It has cmake in it I think among other things?
     buildInputs = [ pkgs.stdenv.cc.cc.lib ] ++ filterAndFlatten propagatedBuildInputs;
-    start = extraPlugins ++ filterAndFlatten startupPlugins;
+    start = [ nixCats ] ++ filterAndFlatten startupPlugins;
     opt = filterAndFlatten optionalPlugins;
 
     # For wrapperArgs:
@@ -140,11 +134,10 @@
       in
       uniquifiedList);
 
-    # this sets the name of the folder to look for nvim stuff in
-    configDirName = if configDir != "nvim" then [ ''--set NVIM_APPNAME "${configDir}"'' ] else [];
     # cat our args
     extraMakeWrapperArgs = builtins.concatStringsSep " " (
-      configDirName
+      # this sets the name of the folder to look for nvim stuff in
+      (if configDir != "nvim" then [ ''--set NVIM_APPNAME "${configDir}"'' ] else [])
       # and these are our other now sorted args
       ++ (FandF_WrapRuntimeDeps lspsAndRuntimeDeps)
       ++ (FandF_envVarSet environmentVariables)
@@ -160,15 +153,14 @@
   in
   # add our lsps and plugins and our config, and wrap it all up!
 (import ./wrapNeovim.nix).wrapNeovim pkgs myNeovimUnwrapped {
-  inherit wrapRc extraMakeWrapperArgs;
-  inherit (config) vimAlias viAlias withRuby extraName withNodeJs;
+  inherit extraMakeWrapperArgs;
+  inherit (config) wrapRc vimAlias viAlias withRuby extraName withNodeJs;
   configure = {
     inherit customRC;
     packages.myVimPackage = {
       inherit start opt;
     };
   };
-  # I dont know what these do, but I implemented them?
     /* the function you would have passed to python.withPackages */
   extraPythonPackages = combineCatsOfFuncs extraPythonPackages;
     /* the function you would have passed to python.withPackages */
