@@ -97,14 +97,12 @@
       # We define a function to facilitate package building for particular categories
       # what that function does is it intakes a set of categories 
       # with a boolean value for each, and a set of settings
-      # and then it imports ./builder/default.nix, passing it that categories set but also
-      # our other information. This allows us to define our categories later.
-      nixVimBuilder = settings: categories: (import ./builder {
-        # these are required by the builder
-        inherit self pkgs;
-        # you supply these when you apply this function
-        inherit categories settings;
+      # to do this it imports ./builder/default.nix, passing it our other information.
+      # This allows us to define our categories and settings later.
+      helpPath = "${self}/nixCatsHelp";
+      nixVimBuilder = import ./builder helpPath self pkgs categoryDefinitions;
 
+      categoryDefinitions = {
         # see :help nixCats.flake.outputs.builder
         # to define and use a new category, simply add a new list to a set here, 
         # and later, you will include categoryname = true; in the set you
@@ -242,7 +240,7 @@
         extraLuaPackages = {
           test = [ (_:[]) ];
         };
-      });
+      };
 
       # see :help nixCats.flake.outputs.settings
       settings = {
@@ -295,8 +293,7 @@
             thing4 = "couch is for scratching";
           };
           # you could :lua print(vim.inspect(require('nixCats').theWorstCat))
-          # I honestly dont know what you would need a table like this for,
-          # but I got carried away and it worked FIRST TRY.
+          # I got carried away and it worked FIRST TRY.
           # see :help nixCats
         };
         regularCats = nixVimBuilder settings.unwrappedLua {
@@ -346,6 +343,19 @@
         inputsFrom = [ ];
         shellHook = ''
         '';
+      };
+      # To choose settings and categories from the flake that calls this flake.
+      customPackager = nixVimBuilder;
+      standardPluginOverlay = import ./overlays/standardPluginOverlay.nix;
+      customBuilders = {
+        # These 2 will still recieve the flake's lua when wrapRc = true;
+        fresh = import ./builder helpPath self;
+        merged = newPkgs: categoryDefs:
+          (import ./builder helpPath self (pkgs // newPkgs) (categoryDefinitions // categoryDefs));
+        # for these ones, you may specify a new path to lua that can be used with wrapRc = true
+        newLuaPath = import ./builder helpPath;
+        mergedNewLuaPath = path: newPkgs: categoryDefs:
+          (import ./builder helpPath path (pkgs // newPkgs) (categoryDefinitions // categoryDefs));
       };
     }
 

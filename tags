@@ -60,16 +60,12 @@ general	flake.nix	/^          general = with pkgs.vimPlugins; [$/;"	m
 general	flake.nix	/^          general = with pkgs.vimPlugins; [ ];$/;"	m
 general	flake.nix	/^          general = with pkgs; [$/;"	m
 general	flake.nix	/^          general = true;$/;"	m
-general	flake.nix	/^          general = with pkgs.vimPlugins; [ ];$/;"	m
-general	flake.nix	/^          general = with pkgs; [$/;"	m
 general	flake.nix	/^          general = true;$/;"	m
 generalBuildInputs	flake.nix	/^          generalBuildInputs = true;$/;"	m
 generalBuildInputs	flake.nix	/^          generalBuildInputs = true;$/;"	m
 generalBuildInputs	flake.nix	/^          generalBuildInputs = with pkgs; [$/;"	m
 gitPlugins	flake.nix	/^          gitPlugins = with pkgs.neovimPlugins; [$/;"	m
 gitPlugins	flake.nix	/^          gitPlugins = true;$/;"	m
-gitPlugins	flake.nix	/^          gitPlugins = with pkgs.neovimPlugins; [$/;"	m
-gitPlugins	flake.nix	/^          gitPlugins = with pkgs.neovimPlugins; [ ];$/;"	m
 gitPlugins	flake.nix	/^          gitPlugins = true;$/;"	m
 gitPlugins	flake.nix	/^          gitPlugins = with pkgs.neovimPlugins; [ ];$/;"	m
 hash	overlays/customBuildsOverlay.nix	/^            hash = "sha256-kzc9jm6d9PJ07yiWfIOwqxOTAAydTpaLXVK6sEWM8gg=";$/;"	m
@@ -95,7 +91,6 @@ nativeBuildInputs	overlays/customBuildsOverlay.nix	/^        nativeBuildInputs =
 neonixdev	flake.nix	/^          neonixdev = with pkgs.vimPlugins; [$/;"	m
 neonixdev	flake.nix	/^          neonixdev = with pkgs; [$/;"	m
 neonixdev	flake.nix	/^          neonixdev = true;$/;"	m
-neonixdev	flake.nix	/^          neonixdev = with pkgs; [$/;"	m
 neonixdev	flake.nix	/^          neonixdev = true;$/;"	m
 neovimPlugins	overlays/default.nix	/^      neovimPlugins = builtins.listToAttrs (map$/;"	m
 nixCats	flake.nix	/^        nixCats = {$/;"	m
@@ -117,7 +112,6 @@ plugins	builder/wrapNeovim.nix	/^        inherit plugins;$/;"	m
 pname	overlays/default.nix	/^        pname = plugName name;$/;"	m
 pname	overlays/customBuildsOverlay.nix	/^          inherit (super.vimPlugins.markdown-preview-nvim) pname version;$/;"	m
 postInstall	overlays/customBuildsOverlay.nix	/^        postInstall = ''$/;"	m
-propagatedBuildInputs	flake.nix	/^        propagatedBuildInputs = {$/;"	m
 propagatedBuildInputs	builder/default.nix	/^      propagatedBuildInputs = buildInputs;$/;"	m
 propagatedBuildInputs	flake.nix	/^        propagatedBuildInputs = {$/;"	m
 regularCats	flake.nix	/^        regularCats = nixVimBuilder settings.unwrappedLua {$/;"	m
@@ -172,7 +166,6 @@ vimAlias	flake.nix	/^          vimAlias = true;$/;"	m
 vimAlias	builder/default.nix	/^      vimAlias = false;$/;"	m
 vimAlias	builder/default.nix	/^  inherit (config) wrapRc vimAlias viAlias withRuby extraName withNodeJs;$/;"	m
 vimAlias	builder/wrapNeovim.nix	/^        inherit withNodeJs withRuby viAlias vimAlias;$/;"	m
-vimAlias	builder/default.nix	/^  inherit (config) vimAlias viAlias withRuby extraName withNodeJs;$/;"	m
 withNodeJs	builder/default.nix	/^      withNodeJs = false;$/;"	m
 withNodeJs	builder/wrapNeovim.nix	/^        inherit withNodeJs withRuby viAlias vimAlias;$/;"	m
 withNodeJs	builder/default.nix	/^  inherit (config) wrapRc vimAlias viAlias withRuby extraName withNodeJs;$/;"	m
