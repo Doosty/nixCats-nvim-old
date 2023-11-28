@@ -11,12 +11,8 @@ just doing this and including more comments than code.
   # this function takes a set with the following items:
   # our arguments ? and their default values
 >nix
-  { 
-    self
-    , pkgs
-    , categories ? {}
-    , settings ? {}
-
+  helpPath: path: pkgs: 
+  {
     , startupPlugins ? {}
     , optionalPlugins ? {}
     , lspsAndRuntimeDeps ? {}
@@ -40,10 +36,19 @@ just doing this and including more comments than code.
     , extraPython3Packages ? {}
     # same thing except for lua.withPackages
     , extraLuaPackages ? {}
-    }:
+<
+    # only for use when importing this flake in another flake 
+    # and need to add a bit of lua for an added plugin.
+    # Yes you can require nixCats in it. >nix
+    , optionalLuaAdditions ? ""
+    }: 
+<
+    # and our last 2 arguments:
+>nix
+    settings: categories:
     let
 <
-      # when packaging, one of these is passed, 
+      # when packaging, one of these is passed as settings,
       # but we dont want to have to define all of them every time.
       # so we update the default config with whatever new options were passed
 >nix
@@ -65,11 +70,11 @@ just doing this and including more comments than code.
     # see :help `'rtp'` for what folders can be defined
 >nix
     LuaConfig = pkgs.stdenv.mkDerivation {
-      name = builtins.baseNameOf self;
+      name = builtins.baseNameOf path;
       builder = builtins.toFile "builder.sh" ''
         source $stdenv/setup
         mkdir -p $out
-        cp -r ${self}/* $out/
+        cp -r ${path}/* $out/
       '';
     };
 <
@@ -77,7 +82,7 @@ just doing this and including more comments than code.
     # here is where nixCats is generated
     # it uses some recursive stuff in utils to print a lua table to a file.
     # That table is the categories we were including, plus wrapRc
-    # Thats it. Also it defines a user command.
+    # Thats it. Also it defines a user command and includes the help.
 >nix
     nixCats = pkgs.stdenv.mkDerivation {
       name = "nixCats";
@@ -95,7 +100,7 @@ just doing this and including more comments than code.
         mkdir -p $out/lua
         mkdir -p $out/doc
         cp ${cats} $out/lua/nixCats.lua
-        cp -r ${self}/nixCatsHelp/* $out/doc
+        cp -r ${helpPath}/* $out/doc
       '';
     };
 <
@@ -103,37 +108,59 @@ just doing this and including more comments than code.
     # This makes sure our config is loaded at the right time and our after is loaded last.
     # It requires the root level init.lua file. 
     # It also removes the regular config dir from the path.
-    # It only does this if config.wrapRc == true
+    # The wrapper we are using might put it in the wrong place for our uses.
+    # so we add in the config directory ourselves to prevent any issues.
+    # even when wrapRc == false.
 >nix
     configDir = if config.configDirName != null && config.configDirName != ""
       then config.configDirName else "nvim";
-    customRC = if config.wrapRc then ''
+    customRC = ''
         let configdir = expand('~') . "/.config/${configDir}"
         execute "set runtimepath-=" . configdir
         execute "set runtimepath-=" . configdir . "/after"
-
-        let new_directory = '${LuaConfig}'
-        let current_runtimepath = &runtimepath
-        let runtimepath_list = split(current_runtimepath, ',')
-        call insert(runtimepath_list, new_directory, 0)
+      '' + (if config.wrapRc then ''
+        let runtimepath_list = split(&runtimepath, ',')
+        call insert(runtimepath_list, "${LuaConfig}", 0)
         let &runtimepath = join(runtimepath_list, ',')
 
         set runtimepath+=${LuaConfig}/after
 
         lua package.path = package.path .. ';${LuaConfig}/init.lua'
         lua require('${builtins.baseNameOf LuaConfig}')
-      '' else "";
+      '' else ''
+        let runtimepath_list = split(&runtimepath, ',')
+        call insert(runtimepath_list, configdir, 0)
+        let &runtimepath = join(runtimepath_list, ',')
+
+        execute "set runtimepath+=" . configdir . "/after"
+
+        lua package.path = package.path .. ';' .. vim.api.nvim_get_var('configdir') .. '/init.lua'
+        lua require('${configDir}')
+      '') + ''
+        lua << EOF
+        ${optionalLuaAdditions}
+        EOF
+      '';
 <
+      # optionalLuaAdditions is not the suggested way to add lua to this flake
+      # It is only for use when importing this flake in another flake 
+      # and need to add a bit of lua for 
+      # an added plugin using a custom builder
+      # you could in theory add a directory to the runtimepath 
+      # with it though from another flake that imports this flake.
+      # Yes you can require nixCats in it.
+      # Again, not recommended.
+
 ---------------------------------------------------------------------------------
                              *nixCats.flake.nixperts.nvimBuilder.basicFlatmap*
 
-    # this is what allows for dynamic packaging in flake.nix
-    # It includes categories marked as true, then flattens to a single list
+    # This is what allows for dynamic packaging in flake.nix.
+    # It includes categories marked as true, then flattens to a single list.
 >nix
     filterAndFlatten = (import ./utils.nix)
           .filterAndFlattenAttrsOfLists pkgs categories;
 <
-    # we can use that function to filter many of the options.
+    # We can use that function to filter many of the options.
     # anything that has an argument in the wrapper and 
     # is a list of categories of packages, you can filter this way
 >nix
@@ -250,10 +277,9 @@ just doing this and including more comments than code.
     in
     # add all our stuff, and wrap it all up!
     # the following is just the regular pkgs.wrapNeovim
-    # except it also accepts wrapRc as an argument
   (import ./wrapNeovim.nix).wrapNeovim pkgs myNeovimUnwrapped {
     inherit extraMakeWrapperArgs;
-    inherit (config) wrapRc vimAlias viAlias withRuby extraName withNodeJs;
+    inherit (config) vimAlias viAlias withRuby extraName withNodeJs;
     configure = {
       inherit customRC;
       packages.myVimPackage = {
