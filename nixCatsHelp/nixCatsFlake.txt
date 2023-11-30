@@ -26,6 +26,8 @@ When editing the files within the flake directory,
 nix will not package a new file if it isn't staged in git.
 run git add before rebuilding it whenever adding a new file.
 Using wrapRc = true would mean this also applies to lua files.
+In fact, when wrapRc = true, even changes within a lua file
+will not be reflected unless you run git add.
 *******************************************************
 
 Related:
@@ -40,6 +42,11 @@ If they dont have an extra build step,
 name the plugins you import from github 
 plugins-somepluginname 
 They will be processed automatically into plugins by the default overlay.
+
+If the plugin has a dot in it's name, you should name it something else.
+The name here only affects the filename of the overall plugin, and should
+only effect things like packadd. Usually I would replace it with - or _
+You will then add it to categoryDefinitions later with the NEW name.
 
 If they have a build step or are not a plugin, 
 i.e. an lsp, dont name them in that format.
@@ -68,12 +75,14 @@ First, we call flake utils to get system variable for all default systems.
 Then, we define our overlays. They are in the overlays directory.
 Thus, we can import that directory here,
 which runs overlays/default.nix.
+overlays/default.nix simply imports
+a list of other overlays in the directory.
 We have 2 main overlays to discuss.
 
 <1>
 -- The first is standardPluginOverlay:
 
-This overlay is defined in full in overlays/default.nix.
+This overlay is defined in full in overlays/standardPluginOverlay.nix.
 You do not need to edit it to use it.
 
 It takes all the inputs named in the format
@@ -118,9 +127,9 @@ add to a category directly.
 ---------------------------------------------------------------------------------------
 Neovim Builder Creation:                        *nixCats.flake.outputs.builder*
 
-We now create a builder function that takes 2 arguments. 
-A set of categories and a set of settings. 
-It does this by importing the builder's default.nix.
+We now create a builder function that takes as
+its argument a set with 2 sets in it.
+A set of categories and a set of settings.
 
 The settings set is defined in the next section. 
 They did not make sense to include in the categories system.
@@ -132,22 +141,27 @@ is a set of named boolean values like this:
 { categoryname1 = true; categoryname2 = false; etc... }
 It will tell us which categories to include per package.
 
-To define this function that takes this set of categories and 
-the settings as an argument, we import ./builder/default.nix
-and provide it a set containing the following info.
+To define this function,
+we import ./builder/default.nix and supply it the following.
 
-Arguments: <settings>: <categories>: 
-{
+1. The path to the help directory so that it is always included.
+2. The path to the lua to include (in the flake, we use the self variable to get
+     this path and wrap the lua when wrapRc = true)
+3. The pkgs set so that it can use it for making its own derivations.
+4. our set of categoryDefinitions.
 
-<-> a reference to the self variable that gives us the path to the flake.
+And it will return a function that takes a set as an argument containing:
+1. the set of settings
+2. the set of included categories
+>nix
+  nixVimBuilder = import ./builder helpPath self pkgs categoryDefinitions;
+  # notice how we provide it with the set we define below?
+<
 
-<-> the pkgs set with the overlays
-
-<-> the <settings> set that this function took as an argument.
-
-<-> the <categories> set that this function took as an argument.
-      It will define which of the categories to include from the following:
-
+Then we define what is in our categories!
+>nix
+  categoryDefinitions = {
+<
 <-> a flexible set of categories, each containing a list of 
       internal BUILD TIME dependencies
 
@@ -190,8 +204,8 @@ These are the defaults:
   settings = {
     defaults = {
 <
-      # do you want to use lua from this flake?
-      # or would you rather do it in your .config/<configDirName>?
+      # do you want to package the lua from this flake in the store?
+      # or would you rather it just read it in your .config/<configDirName>?
       # nixCats and this help will work either way.
       # this value will also be included in nixCats.
 >nix
@@ -201,9 +215,7 @@ These are the defaults:
       # i.e. .config, .local/share, .local/state, .cache, etc... be?
       # This option is very useful when you want 
       # to clone an unwrapped config straight to the .config dir.
-      # IMPORTANT: because this affects all nvim directories, you will need to
-      # log into anything that needs auth again for it to save the auth to the
-      # new folders when you change this.
+      # see :help `$NVIM_APPNAME`
 >nix
       configDirName = "nvim";
 
@@ -248,21 +260,24 @@ as well as the general startupPlugins category.
 an example package definition:
 >nix
   packageDefinitions = {
-    nixCats = nixVimBuilder settings.nixCats {
-      custom = true;
-      gitPlugins = true;
-      general = true;
-      neonixdev = true;
+    nixCats = { 
+      setting = settings.nixCats;
+      categories = {
+        custom = true;
+        gitPlugins = true;
+        general = true;
+        neonixdev = true;
 
-      # this does not have an associated category of plugins, 
-      # but lua can still check for it
-      lspDebugMode = false;
+        # this does not have an associated category of plugins, 
+        # but lua can still check for it
+        lspDebugMode = false;
 
-      # you could also pass something else and it calls 
-      # builtins.toString on it and passes it in as a string
-      theBestCat = "says meow!!!";
-      # maybe you need to pass a port or path in or something idk.
-      # you could :lua print(require('nixCats').theBestCat)
+        # you could also pass something else and it calls 
+        # builtins.toString on it and passes it in as a string
+        theBestCat = "says meow!!!";
+        # maybe you need to pass a port or path in or something idk.
+        # you could :lua print(require('nixCats').theBestCat)
+      };
     };
   };
 <
@@ -275,9 +290,55 @@ see :help `nixCats`
 Flake devShell and package definitions         *nixCats.flake.outputs.packages*
 
 This will automatically add all of the packages in the 
-packageDefinitions set defined in the section above. 
+packageDefinitions set defined in the section above.
 
-However you still must choose your default packages.
+However you still must choose your default packages
+for packages, devShell, and overlays.
+
+In addition, it defines a way for you to choose what
+categories and settings are included in 
+the flake that imports this flake, rather than choosing
+a package you defined within the flake itself.
+Exactly like :help `nixCats.flake.outputs.packaging`
+
+This can be quite handy when you only need some things
+from a flake you defined, 
+but dont want to define a package in the flake for it.
+This option is called with nixCats.customPackager.${system}
+
+For this next section, these are related to:
+:help `nixCats.flake.outputs.builder`
+
+This flake defines 4 ways to create your own builder, but
+within another flake that calls this one for even more options.
+they are called:
+customBuilders.${system}.fresh, merged, newLuaPath, and mergedNewLuaPath.
+
+It also exposes standardPluginOverlay.${system} so that you
+may use it within flakes that import this one.
+
+Fresh has no nix categories defined. 
+It is usually best used with wrapRc = false.
+
+Merged has the categories you defined, but you can REDEFINE 
+any category you wish or add new categories.
+
+When using either of these, unless you have wrapRc = false 
+it will recieve the flake's lua. There is a way
+to add additional lua, but it is not recommended over editing the flake.
+for more details on that, see :help `nixCats.flake.nixperts.nvimBuilder`
+
+The last 2 ways to create your own builder do not recieve the flake's lua.
+
+Instead, you must specify an absolute or store path (which includes the self
+variable from another flake) to look in for when wrapRc == true.
+
+Otherwise, they are the equivalent to the two above.
+
+The order of arguments for these builder functions 
+is the same as the regular one.
+
+path: pkgs: categoryDefinitions: { settings, categories }:
 
 ---------------------------------------------------------------------------------------
 vim:tw=78:ts=8:ft=help:norl:
