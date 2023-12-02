@@ -1,45 +1,60 @@
 # Copyright (c) 2023 BirdeeHub 
 # Licensed under the MIT license 
-{ 
-  self
-  , pkgs
-  , categories ? {}
-  , settings ? {}
-  , startupPlugins ? {}
-  , optionalPlugins ? {}
-  , lspsAndRuntimeDeps ? {}
-  , propagatedBuildInputs ? {}
-  , environmentVariables ? {}
-  , extraWrapperArgs ? {}
+helpPath: path: pkgs:
+categoryDefFunction:
+packageDefinitons: name:
+  # for a more extensive guide to this file
+  # see :help nixCats.flake.nixperts.nvimBuilder
+let
+  inherit (
+    {
+      startupPlugins = {};
+      optionalPlugins = {};
+      lspsAndRuntimeDeps = {};
+      propagatedBuildInputs = {};
+      environmentVariables = {};
+      extraWrapperArgs = {};
   # the source says:
     /* the function you would have passed to python.withPackages */
   # So you put in a set of categories of lists of them.
-  , extraPythonPackages ? {}
-  , extraPython3Packages ? {}
-  # same thing except for lua.withPackages
-  , extraLuaPackages ? {}
-  }:
-  # for a more extensive guide to this file
-  # see :help nixCats.flake.nixperts.nvimBuilder
+      extraPythonPackages = {};
+      extraPython3Packages = {};
+      # same thing except for lua.withPackages
+      extraLuaPackages = {};
+      # only for use when importing flake in a flake 
+      # and need to only add a bit of lua for an added plugin
+      optionalLuaAdditions = "";
+    } // (categoryDefFunction name)
+  )
+  startupPlugins optionalPlugins 
+  lspsAndRuntimeDeps propagatedBuildInputs
+  environmentVariables extraWrapperArgs 
+  extraPythonPackages extraPython3Packages
+  extraLuaPackages optionalLuaAdditions;
+
+  settings = {
+    wrapRc = true;
+    viAlias = false;
+    vimAlias = false;
+    withNodeJs = false;
+    withRuby = true;
+    extraName = "";
+    withPython3 = true;
+    configDirName = "nvim";
+  } // packageDefinitons.${name}.settings;
+
+  categories = packageDefinitons.${name}.categories;
+
+in
   let
-    config = {
-      wrapRc = true;
-      viAlias = false;
-      vimAlias = false;
-      withNodeJs = false;
-      withRuby = true;
-      extraName = "";
-      withPython3 = true;
-      configDirName = "nvim";
-    } // settings;
 
     # package entire flake into the store
     LuaConfig = pkgs.stdenv.mkDerivation {
-      name = builtins.baseNameOf self;
+      name = builtins.baseNameOf path;
       builder = builtins.toFile "builder.sh" ''
         source $stdenv/setup
         mkdir -p $out
-        cp -r ${self}/* $out/
+        cp -r ${path}/* $out/
       '';
     };
 
@@ -47,7 +62,7 @@
     nixCats = pkgs.stdenv.mkDerivation {
       name = "nixCats";
       builder = let
-        categoriesPlus = categories // { inherit (config) wrapRc; };
+        categoriesPlus = categories // { inherit (settings) wrapRc; };
         cats = builtins.toFile "nixCats.lua" ''
             vim.api.nvim_create_user_command('NixCats', 
             [[lua print(vim.inspect(require('nixCats')))]] , 
@@ -59,31 +74,48 @@
         mkdir -p $out/lua
         mkdir -p $out/doc
         cp ${cats} $out/lua/nixCats.lua
-        cp -r ${self}/nixCatsHelp/* $out/doc
+        cp -r ${helpPath}/* $out/doc
       '';
     };
 
     # create our customRC to call it
     # This makes sure our config is loaded first and our after is loaded last
     # it also removes the regular config dir from the path.
-    configDir = if config.configDirName != null && config.configDirName != ""
-      then config.configDirName else "nvim";
-    customRC = if config.wrapRc then ''
+    # the wrapper we are using might put it in the wrong place for our uses.
+    # so we add in the config directory ourselves to prevent any issues.
+    configDir = if settings.configDirName != null && settings.configDirName != ""
+      then settings.configDirName else "nvim";
+    customRC = ''
         let configdir = expand('~') . "/.config/${configDir}"
         execute "set runtimepath-=" . configdir
         execute "set runtimepath-=" . configdir . "/after"
-
-        let new_directory = '${LuaConfig}'
-        let current_runtimepath = &runtimepath
-        let runtimepath_list = split(current_runtimepath, ',')
-        call insert(runtimepath_list, new_directory, 0)
+      '' + (if settings.wrapRc then ''
+        let runtimepath_list = split(&runtimepath, ',')
+        call insert(runtimepath_list, "${LuaConfig}", 0)
         let &runtimepath = join(runtimepath_list, ',')
 
         set runtimepath+=${LuaConfig}/after
 
         lua package.path = package.path .. ';${LuaConfig}/init.lua'
         lua require('${builtins.baseNameOf LuaConfig}')
-      '' else "";
+      '' else ''
+        let runtimepath_list = split(&runtimepath, ',')
+        call insert(runtimepath_list, configdir, 0)
+        let &runtimepath = join(runtimepath_list, ',')
+
+        execute "set runtimepath+=" . configdir . "/after"
+
+        lua package.path = package.path .. ';' .. vim.api.nvim_get_var('configdir') .. '/init.lua'
+        lua require('${configDir}')
+      '') + ''
+        lua << EOF
+        ${optionalLuaAdditions}
+        EOF
+      '';
+      # optionalLuaAdditions is not the suggested way to add lua to this flake
+      # only for use when importing flake in a flake 
+      # and need to add a bit of lua for an added plugin
+      # you could add a new directory though idk thats your buisness.
 
 
     # this is what allows for dynamic packaging in flake.nix
@@ -154,7 +186,7 @@
   # add our lsps and plugins and our config, and wrap it all up!
 (import ./wrapNeovim.nix).wrapNeovim pkgs myNeovimUnwrapped {
   inherit extraMakeWrapperArgs;
-  inherit (config) wrapRc vimAlias viAlias withRuby extraName withNodeJs;
+  inherit (settings) vimAlias viAlias withRuby extraName withNodeJs;
   configure = {
     inherit customRC;
     packages.myVimPackage = {
@@ -164,7 +196,7 @@
     /* the function you would have passed to python.withPackages */
   extraPythonPackages = combineCatsOfFuncs extraPythonPackages;
     /* the function you would have passed to python.withPackages */
-  withPython3 = config.withPython3;
+  withPython3 = settings.withPython3;
   extraPython3Packages = combineCatsOfFuncs extraPython3Packages;
     /* the function you would have passed to lua.withPackages */
   extraLuaPackages = combineCatsOfFuncs extraLuaPackages;

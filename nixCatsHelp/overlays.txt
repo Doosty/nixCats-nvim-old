@@ -1,3 +1,6 @@
+---------------------------------------------------------------------------------------
+*nixCats.flake.nixperts.overlays*
+
 # The following is the overlays/default.nix file.
 # you may copy paste it into a file then include it in your flake.nix
 # to add new overlays you should follow 
@@ -31,6 +34,8 @@ inputs: let
 
     # this is how you would add another overlay file
     # for if your customBuildsOverlay gets too long
+    # because this is named nixCatsBuilds, 
+    # you will import with pkgs.nixCatsBuilds.something
     nixCatsBuilds = import ./customBuildsOverlay.nix;
 
   };
@@ -38,3 +43,6 @@ in
 # then it calls the functions we imported with their name here as importName
 # and turns that into a list by getting just the values of overlaySet
 builtins.attrValues (builtins.mapAttrs (name: value: (value name inputs)) overlaySet)
+
+---------------------------------------------------------------------------------------
+vim:tw=78:ts=8:ft=help:norl:
