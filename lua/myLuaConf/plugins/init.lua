@@ -45,12 +45,6 @@ require('nvim-surround').setup()
 -- indent-blank-line
 require("ibl").setup()
 
-require('harpoon').setup()
-vim.keymap.set('n', '<leader>hh', [[:lua require("harpoon.ui").toggle_quick_menu()<CR>]], { noremap = true, silent = true, desc = 'open harpoon menu' })
-vim.keymap.set('n', '<leader>hm', [[:lua require("harpoon.mark").add_file()<CR>]], { noremap = true, silent = true, desc = 'add file to harpoon' })
-vim.keymap.set('n', '<leader>hb', [[:lua require("harpoon.ui").nav_prev()<CR>]], { noremap = true, silent = true, desc = 'open prev harpoon' })
-vim.keymap.set('n', '<leader>hn', [[:lua require("harpoon.ui").nav_next()<CR>]], { noremap = true, silent = true, desc = 'open next harpoon' })
-
 require('gitsigns').setup({
     -- See `:help gitsigns.txt`
   signs = {
@@ -94,5 +88,4 @@ require('which-key').register {
   ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
   ['<leader>m'] = { name = '[M]arkdown', _ = 'which_key_ignore' },
   ['<leader>F'] = { name = '[F]ile explorer', _ = 'which_key_ignore' },
-  ['<leader>h'] = { name = '[H]arpoon', _ = 'which_key_ignore' },
 }
